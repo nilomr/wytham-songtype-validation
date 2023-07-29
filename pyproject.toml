@@ -1,0 +1,41 @@
+[build-system]
+requires = ["flit_core >=3.2,<4"]
+build-backend = "flit_core.buildapi"
+
+[project]
+name = "src"
+description = "A worked example showing a use case for pykanto"
+version = "0.1.0"
+authors = [{ name = "Nilo M. Recalde", email = "nilomerinorecalde@gmail.com" }]
+classifiers = [
+    'License :: OSI Approved :: MIT License',
+    'Development Status :: 4 - Beta',
+    'Programming Language :: Python :: 3.8',
+    'Programming Language :: Python :: 3.9',
+]
+requires-python = ">=3.8"
+readme = "README.md"
+license = { file = "LICENSE" }
+dependencies = ["pykanto", "typer"]
+
+[project.optional-dependencies]
+dev = ["pytest >=7", "nox", "black"]
+jupyter = ["ipywidgets", "ipykernel", "nb_conda_kernels", "jupyterlab"]
+torch = ["neptune-client", "pytorch-lightning"]
+doc = [
+    "sphinx",
+    "sphinx-copybutton",
+    "sphinx_book_theme",
+    "myst-nb",
+    "myst-parser",
+]
+
+[project.urls]
+Source = "https://github.com/nilomr/pykanto-example"
+
+[tool.black]
+line-length = 80
+
+[tool.isort]
+profile = "black"
+float_to_top = 'True'
