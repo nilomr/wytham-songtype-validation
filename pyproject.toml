@@ -16,7 +16,7 @@ classifiers = [
 requires-python = ">=3.8"
 readme = "README.md"
 license = { file = "LICENSE" }
-dependencies = ["pykanto", "typer"]
+dependencies = ["pykanto", "typer", "pyrootutils"]
 
 [project.optional-dependencies]
 dev = ["pytest >=7", "nox", "black"]

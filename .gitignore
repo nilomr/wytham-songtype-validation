@@ -79,32 +79,9 @@ target/
 # exclude data from source control by default
 # And data alias + other folders
 
-/private/*
-!/private/client_secret.json
-/resources/brood_data/temporal
-/resources/tit_images
-/resources/fieldwork/
-/references/
-/test/
-
-
-/reports/text/talks
-reports/figures/*
-/logs/
+data
 data/*
-!/data/segmented
-!data/datasets
-data/datasets/*
-!data/datasets/pykanto-example
-data/datasets/pykanto-example/*
-!data/datasets/pykanto-example/checked_labels.csv
-!data/datasets/pykanto-example/bird_data.csv
 
-!/data/datasets/pykanto-example/ML/
-/data/datasets/pykanto-example/ML/*
-!/data/datasets/pykanto-example/ML/output
-/data/datasets/pykanto-example/ML/output/*
-!/data/datasets/pykanto-example/ML/output/feat_vectors.csv
 
 
 

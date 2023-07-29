@@ -6,29 +6,36 @@ from pathlib import Path
 
 import git
 import pandas as pd
+import pyrootutils
+from pykanto.utils.compute import with_pbar
 from pykanto.utils.io import load_dataset, save_subset
 from pykanto.utils.paths import ProjDirs
 from sklearn.model_selection import train_test_split
 
 # ──── SETTINGS ─────────────────────────────────────────────────────────────────
 
-DATASET_ID = "pykanto-example"
+DATASET_ID = "great-tit-songtypes"
+BASE_DATASET_ID = "great-tit-hits"
 
-# Minimum sample size to include a bird in the model:
-min_sample = 10
+PROJECT_ROOT = pyrootutils.find_root()
 
-# Start a ProjDirs object for the project
-project_root = Path(
-    git.Repo(".", search_parent_directories=True).working_tree_dir  # type: ignore
-)
-segmented_dir = project_root / "data" / "segmented" / DATASET_ID
-DIRS = ProjDirs(project_root, segmented_dir, DATASET_ID, mkdir=True)
 
-# ──── LOAD DATASET ─────────────────────────────────────────────────────────────
+# Create a ProjDirs object for the project
+S_DATA = PROJECT_ROOT / "data" / "segmented" / BASE_DATASET_ID
+DIRS = ProjDirs(PROJECT_ROOT, S_DATA, BASE_DATASET_ID)
+
+
+# ──── LOAD DATASET ────────────────────────────────────────────────────────────
 
 # Open an existing dataset
-out_dir = DIRS.DATA / "datasets" / DATASET_ID / f"{DATASET_ID}.db"
+out_dir = DIRS.DATASET.parent / f"{DATASET_ID}.db"
 dataset = load_dataset(out_dir, DIRS)
+
+
+# Minimum cluster size to include a song type in the model:
+min_cluster_size = 3
+sample = 2
+
 
 # ──── SUBSAMPLE DATASET FOR MODEL TRAINING ─────────────────────────────────────
 
@@ -37,33 +44,37 @@ This will create a unique song class label for each vocalisation in the dataset
 (a combination of the ID and the label).
 """
 
-# Remove rows from song types with fewer than 10 songs, then sample 10 songs per
-# type and bird
+# from dataset.data get only the 'class_label' for which there is at least
+# min_cluster_size 'class_id'
 
-df = (
-    dataset.data.query("noise == False")
-    .groupby(["ID", "class_label"])
-    .filter(lambda x: len(x) >= min_sample)
-    .copy()
+df = dataset.data.groupby("class_label").filter(
+    lambda x: len(x["class_id"].unique()) >= min_cluster_size
 )
 
-df_sub = pd.concat(
-    [
-        data.sample(n=min_sample, random_state=42)
-        for _, data in df.groupby(["ID", "class_label"])
-    ]
+
+# randomly sample 'sample' songs per class_id
+df_sub = df.groupby(["class_id"]).sample(sample, random_state=42, replace=True)
+
+
+df = dataset.data.groupby(["class_label"]).filter(
+    lambda x: len(x) >= min_cluster_size
 )
 
-# Remove songs labelled as noise (-1)
-df_sub = df_sub.loc[df_sub["class_label"] != "-1"]
 
-# Add new unique song type ID and add spectrogram files
-df_sub["song_class"] = df_sub["ID"] + "_" + df_sub["class_label"]
+# count number of rows per class_id in df_sub
+dataset.data["class_label"].value_counts()
+df_sub["class_label"].value_counts()
+df_sub["class_id"].value_counts()
+
+
+# Add spectrogram files
 df_sub["spectrogram"] = dataset.files["spectrogram"]
 
 # Print info
-n_rem = len(set(dataset.data["ID"])) - len(set(df_sub["ID"]))
-print(f"Removed {n_rem} birds (no songs types with < {min_sample} examples)")
+n_rem = len(set(dataset.data["class_label"])) - len(set(df_sub["class_label"]))
+print(
+    f"Removed {n_rem} song types (songs types with < {min_cluster_size} songs)"
+)
 
 
 # ──── TRAIN / TEST SPLIT AND EXPORT ────────────────────────────────────────────
@@ -72,16 +83,18 @@ train, test = train_test_split(
     df_sub,
     test_size=0.3,
     shuffle=True,
-    stratify=df_sub["song_class"],
+    stratify=df_sub["class_label"],
     random_state=42,
 )
+
+train["class_label"].value_counts()
 
 out_dir = dataset.DIRS.DATASET.parent / "ML"
 train_dir, test_dir = out_dir / "train", out_dir / "test"
 
 for dset, dname in zip([train, test], ["train", "test"]):
     to_export = (
-        dset.groupby("song_class")["spectrogram"]  # type: ignore
+        dset.groupby("class_label")["spectrogram"]  # type: ignore
         .apply(list)
         .to_dict()
         .items()
