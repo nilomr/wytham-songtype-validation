@@ -81,6 +81,8 @@ target/
 
 data
 data/*
+resources/ML/train
+resources/ML/test
 
 
 
