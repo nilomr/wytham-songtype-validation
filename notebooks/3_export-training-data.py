@@ -2,12 +2,7 @@
 
 from __future__ import annotations
 
-from pathlib import Path
-
-import git
-import pandas as pd
 import pyrootutils
-from pykanto.utils.compute import with_pbar
 from pykanto.utils.io import load_dataset, save_subset
 from pykanto.utils.paths import ProjDirs
 from sklearn.model_selection import train_test_split
@@ -16,9 +11,7 @@ from sklearn.model_selection import train_test_split
 
 DATASET_ID = "great-tit-songtypes"
 BASE_DATASET_ID = "great-tit-hits"
-
 PROJECT_ROOT = pyrootutils.find_root()
-
 
 # Create a ProjDirs object for the project
 S_DATA = PROJECT_ROOT / "data" / "segmented" / BASE_DATASET_ID
@@ -31,10 +24,9 @@ DIRS = ProjDirs(PROJECT_ROOT, S_DATA, BASE_DATASET_ID)
 out_dir = DIRS.DATASET.parent / f"{DATASET_ID}.db"
 dataset = load_dataset(out_dir, DIRS)
 
-
 # Minimum cluster size to include a song type in the model:
 min_cluster_size = 3
-sample = 2
+sample = 3
 
 
 # ──── SUBSAMPLE DATASET FOR MODEL TRAINING ─────────────────────────────────────
@@ -45,12 +37,11 @@ This will create a unique song class label for each vocalisation in the dataset
 """
 
 # from dataset.data get only the 'class_label' for which there is at least
-# min_cluster_size 'class_id'
+# min_cluster_size 'class_id'.
 
 df = dataset.data.groupby("class_label").filter(
     lambda x: len(x["class_id"].unique()) >= min_cluster_size
 )
-
 
 # randomly sample 'sample' songs per class_id
 df_sub = df.groupby(["class_id"]).sample(sample, random_state=42, replace=True)
@@ -71,7 +62,9 @@ df_sub["class_id"].value_counts()
 df_sub["spectrogram"] = dataset.files["spectrogram"]
 
 # Print info
-n_rem = len(set(dataset.data["class_label"])) - len(set(df_sub["class_label"]))
+n_rem = len(set(dataset.data["class_label"].dropna())) - len(
+    set(df_sub["class_label"].dropna())
+)
 print(
     f"Removed {n_rem} song types (songs types with < {min_cluster_size} songs)"
 )
@@ -89,7 +82,7 @@ train, test = train_test_split(
 
 train["class_label"].value_counts()
 
-out_dir = dataset.DIRS.DATASET.parent / "ML"
+out_dir = dataset.DIRS.RESOURCES / "ML"
 train_dir, test_dir = out_dir / "train", out_dir / "test"
 
 for dset, dname in zip([train, test], ["train", "test"]):

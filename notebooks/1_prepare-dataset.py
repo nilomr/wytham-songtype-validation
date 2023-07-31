@@ -11,6 +11,8 @@ import pyrootutils
 from pykanto.utils.io import load_dataset
 from pykanto.utils.paths import ProjDirs, link_project_data
 
+from src.io import read_labels
+
 # ──── SETTINGS ────────────────────────────────────────────────────────────────
 
 
@@ -62,53 +64,70 @@ dataset = load_dataset(out_dir_n, DIRS)
 dataset.data.loc["20221W81_20220406_050000_48505408", "class_id"] = "20221W81_9"
 
 dataset.data["class_id"] = dataset.data["class_id"].replace(
-    {"20211B72_3": "20211B72_2", "class_20221O56_1": "20221O56_0"}
+    {
+        "20211B72_3": "20211B72_2",
+        "20221O56_1": "20221O56_0",
+        "20211SW70_3": "20211SW70_0",
+    }
 )
 
 # ──── ASSIGN NEW LABELS ──────────────────────────────────────────────────────
 
-# create 200 fake classes and assign all the rows in dataset.data to one of them,
-# following a broken stick distribution and based on the class_id column
 
-n_classes = 200
-stick = np.random.beta(1, np.arange(1, n_classes + 1))
-stick /= stick.sum()
+# Read in manually assigned labels
+lfile = DIRS.RESOURCES / "manual_labels_raw.txt"
+labels_dict = read_labels(lfile)
 
-# assign each class_id in dataset.data to one of the classess so that the
-# frequency of each class is proportional to the broken stick distribution
-class_ids = dataset.data.class_id.unique()
-class_labels = pd.DataFrame(
-    {
-        "class_id": class_ids,
-        "class_label": np.random.choice(
-            np.arange(1, n_classes + 1), size=len(class_ids), p=stick
-        ),
-    }
+# Run some basic checks
+existing_labels = set(dataset.data.class_id.unique())
+wrong_labels = (
+    set(label for labels in labels_dict.values() for label in labels)
+    - existing_labels
+)
+if wrong_labels:
+    raise ValueError(
+        f"Labels in labels_dict that are not in dataset.data.class_id: {wrong_labels}"
+    )
+
+new_labels = [label for labels in labels_dict.values() for label in labels]
+old_labs = dataset.data.class_id.unique().tolist()
+missing_labels = [l for l in old_labs if l not in new_labels]
+
+for l in missing_labels:
+    if not ("20211O115" in l or "20221MP32" in l):
+        raise ValueError(f"Label {l} is missing in the manual labels.")
+
+# Sort and plot
+labels_dict = dict(sorted(labels_dict.items(), key=lambda item: len(item[1])))
+pd.Series([len(v) for v in labels_dict.values()]).plot(kind="bar")
+
+
+# create a dataframe with the class label for each unique class_id
+class_labels = (
+    dataset.data.groupby("class_id").first()["class_label"].reset_index()
 )
 
-# plot the frequency of the new labels
-class_labels.class_label.value_counts().plot(kind="bar")
-
-# convert to strings prefixed with "class_"
-class_labels.class_label = class_labels.class_label.apply(
-    lambda x: f"class_{x}"
-)
 
 # save the class labels in a CSV file in DIRS.RESOURCES
-class_labels.to_csv(DIRS.RESOURCES / "manual_labels.csv", index=True)
+class_labels.to_csv(DIRS.RESOURCES / "manual_labels.csv", index=False)
 
 
 # ──── ADD LABELS TO DATASET ──────────────────────────────────────────────────
 
 # Open manually assigned cluster labels and add them to the dataset
-df_labs = pd.read_csv(DIRS.RESOURCES / "manual_labels.csv", index_col=0)
+df_labs = pd.read_csv(DIRS.RESOURCES / "manual_labels.csv")
 
 # map class_id to class_label
-dataset.data.insert(
-    2,
-    "class_label",
-    dataset.data["class_id"].map(df_labs.set_index("class_id")["class_label"]),
-)
+if "class_label" in dataset.data.columns:
+    dataset.data.drop(columns=["class_label"], inplace=True)
+dataset.data.insert(2, "class_label", np.nan)
+for class_id, class_labels in labels_dict.items():
+    dataset.data.loc[
+        dataset.data.class_id.isin(class_labels), "class_label"
+    ] = class_id
+
+# print n of unique class_label
+print(f"Number of unique class_label: {dataset.data.class_label.nunique()}")
 
 # save dataset to disk
 dataset.save_to_disk()
