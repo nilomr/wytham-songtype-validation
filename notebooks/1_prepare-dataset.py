@@ -18,8 +18,8 @@ from src.io import read_labels
 
 DATASET_ID = "great-tit-hits"
 PROJECT_ROOT = pyrootutils.find_root()
-DATA_LOCATION = Path("/media/nilomr/SONGDATA/wytham-great-tit")
-# DATA_LOCATION = Path("/data/zool-songbird/shil5293/data/wytham-great-tit")
+# DATA_LOCATION = Path("/media/nilomr/SONGDATA/wytham-great-tit")
+DATA_LOCATION = Path("/data/zool-songbird/shil5293/projects/great-tit-hits-setup/data")
 
 # Create symlink from project to data if it doesn't exist already:
 if not (PROJECT_ROOT / "data").exists():
@@ -27,7 +27,7 @@ if not (PROJECT_ROOT / "data").exists():
 
 # Create a ProjDirs object for the project
 RAW_DATA = PROJECT_ROOT / "data" / "raw" / DATASET_ID
-RAW_DATA.mkdir(exist_ok=True)
+RAW_DATA.mkdir(exist_ok=True, parents=True)
 DIRS = ProjDirs(PROJECT_ROOT, RAW_DATA, DATASET_ID, mkdir=True)
 
 

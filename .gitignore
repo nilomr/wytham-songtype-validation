@@ -83,6 +83,8 @@ data
 data/*
 resources/ML/train
 resources/ML/test
+notebooks/checkpoints
+notebooks/checkpoints/*
 
 
 
