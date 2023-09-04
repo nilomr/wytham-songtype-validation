@@ -31,7 +31,7 @@ doc = [
 ]
 
 [project.urls]
-Source = "https://github.com/nilomr/pykanto-example"
+Source = "https://github.com/nilomr/wytham-songtype-validation"
 
 [tool.black]
 line-length = 80
